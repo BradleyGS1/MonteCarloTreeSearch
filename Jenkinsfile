@@ -10,7 +10,7 @@ pipeline {
                 // Activate the virtual environment
                 sh 'source venv/bin/activate'
 
-                // Upgrade pip inside the virtual environment
+                // Upgrade pip inside the virtual environmpent
                 sh './venv/bin/pip install --upgrade pip'
 
                 // Install python dependencies using pip
