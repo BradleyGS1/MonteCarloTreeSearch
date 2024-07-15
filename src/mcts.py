@@ -5,8 +5,10 @@ import numpy as np
 
 class TicTacToe:
     def __init__(self, seed: int = 0):
-        self.player_turn: int = 1 # 1: player one goes first, -1: player two goes second
-        self.legal_actions: set[int] = set(i for i in range(9)) # all positions in the board can be played on init
+        # 1: player one goes first, -1: player two goes second
+        self.player_turn: int = 1
+        # All positions in the board can be played on init
+        self.legal_actions: set[int] = set(i for i in range(9))
 
         # Set the fixed np.random seed for initialising the zobrist array
         np.random.seed(7284)
@@ -20,8 +22,9 @@ class TicTacToe:
     def _init_zobrist(self) -> None:
         self.zobrist_array = []
 
-        # There are 2*9+1=19 zobrist hashes (length 64) we need to encode the board
-        # 2*9 for each position and player in that pos, +1 for the player turn
+        # There are 2*9+1=19 zobrist hashes (length 64) we need to encode 
+        # the full game state 2*9 for each position and player in that pos, 
+        # +1 for the player turn
         for _ in range(19):
             zobrist = "".join(np.random.choice(["0", "1"], size=64))
             self.zobrist_array.append(zobrist)
@@ -40,4 +43,3 @@ class TicTacToe:
 
         self._hash_xor(self.hash, zobrist)
         self._hash_xor(self.hash, self.zobrist_array[18])
-        
