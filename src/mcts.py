@@ -22,8 +22,8 @@ class TicTacToe:
     def _init_zobrist(self) -> None:
         self.zobrist_array = []
 
-        # There are 2*9+1=19 zobrist hashes (length 64) we need to encode 
-        # the full game state 2*9 for each position and player in that pos, 
+        # There are 2*9+1=19 zobrist hashes (length 64) we need to encode
+        # the full game state 2*9 for each position and player in that pos,
         # +1 for the player turn
         for _ in range(19):
             zobrist = "".join(np.random.choice(["0", "1"], size=64))
