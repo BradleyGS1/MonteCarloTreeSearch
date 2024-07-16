@@ -1,5 +1,7 @@
 
 
+from copy import copy
+
 import numpy as np
 
 
@@ -63,11 +65,13 @@ class TicTacToe:
 
         self.hash = "0" * 64
 
-        # Initialise the env info dict
+        # Create the env info dict
         env_info = dict()
         env_info["legal_actions"] = self.legal_actions()
         env_info["hash"] = self.hash
         env_info["win"] = 0
+
+        return copy(self.state), env_info
 
     """
     # Perform a single env step

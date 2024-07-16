@@ -12,7 +12,7 @@ from mcts import TicTacToe
 # Zobrist related tests for tictactoe
 
 def test_zobrist0():
-    """ Test that the zobrist array is always the same regardless of user 
+    """ Test that the zobrist array is always the same regardless of user
     provided seed input and each hash is always 64 characters long. """
 
     env0 = TicTacToe()
