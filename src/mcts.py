@@ -23,7 +23,7 @@ class TicTacToe:
             zobrist = "".join(np.random.choice(["0", "1"], size=64))
             self.zobrist_array.append(zobrist)
 
-    # Perform an xor on two hashes and return result 
+    # Perform an xor on two hashes and return result
     def _hash_xor(self, hash0: str, hash1: str) -> str:
         new_hash = []
         for char0, char1 in zip(hash0, hash1):
@@ -72,7 +72,12 @@ class TicTacToe:
     """
     # Perform a single env step
     def step(self, action: int) -> tuple[
-        np.ndarray[np.float32], np.ndarray[np.float32], bool, bool, dict[str,]]:
+        np.ndarray[np.float32],
+        np.ndarray[np.float32],
+        bool,
+        bool,
+        dict[str,]
+    ]:
 
         rewards = np.zeros(shape=2, dtype=np.float32)
         terminated = False
