@@ -33,7 +33,6 @@ pipeline {
                 sh './venv/bin/pytest tests/'
             }
         }
-
     }
 
     post {
