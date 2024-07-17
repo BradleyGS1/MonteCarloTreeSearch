@@ -73,7 +73,7 @@ class TicTacToe:
 
     # Perform a win condition check
     def _win_check(self):
-        state_matrix = np.reshape(self.state, newshape=(3, 3))
+        state_matrix = np.reshape(self.state[:9], newshape=(3, 3))
         win_sum = 3 * self.player_turn
         if np.any(np.sum(state_matrix, axis=0) == win_sum):
             return True
@@ -112,6 +112,7 @@ class TicTacToe:
             )
 
         self.state[action] = self.player_turn
+        self.state[-1] = self.player_turn
         self.legal_moves.remove(action)
         self._update_hash(action)
         env_info["legal_actions"] = self.legal_actions()
