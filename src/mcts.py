@@ -1,7 +1,5 @@
 
 
-from copy import copy
-
 import numpy as np
 
 
@@ -71,9 +69,21 @@ class TicTacToe:
         env_info["hash"] = self.hash
         env_info["win"] = 0
 
-        return copy(self.state), env_info
+        return self.state.copy(), env_info
 
-    """
+    # Perform a win condition check
+    def _win_check(self):
+        win_sum = 3 * self.player_turn
+        if np.any(np.sum(self.state, axis=0) == win_sum):
+            return True
+        if np.any(np.sum(self.state, axis=1) == win_sum):
+            return True
+        if sum(self.state[i, i] for i in range(3)) == win_sum:
+            return True
+        if sum(self.state[i, 2-i] for i in range(3)) == win_sum:
+            return True
+        return False
+
     # Perform a single env step
     def step(self, action: int) -> tuple[
         np.ndarray[np.float32],
@@ -81,8 +91,41 @@ class TicTacToe:
         bool,
         bool,
         dict[str,]
-    ]:
+        ]:
 
         rewards = np.zeros(shape=2, dtype=np.float32)
         terminated = False
-    """
+        env_info = dict()
+        env_info["legal_actions"] = self.legal_actions()
+        env_info["hash"] = self.hash
+        env_info["win"] = 0
+
+        if action not in self.legal_moves:
+            print("Illegal move made.")
+            return (
+                self.state.copy(),
+                rewards,
+                terminated,
+                terminated,
+                env_info
+            )
+
+        self.state[action] = self.player_turn
+        self.legal_moves.remove(action)
+        self._update_hash(action)
+        env_info["legal_actions"] = self.legal_actions()
+        env_info["hash"] = self.hash
+
+        if self._win_check():
+            player_idx = 0 if self.player_turn == 1 else 1
+            rewards[player_idx] = 1.0
+            rewards[1-player_idx] = -1.0
+            terminated = True
+            env_info["win"] = 1
+
+        elif len(self.legal_moves) == 0:
+            terminated = True
+
+        self.player_turn *= -1
+
+        return self.state.copy(), rewards, terminated, terminated, env_info
