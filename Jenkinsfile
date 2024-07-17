@@ -36,14 +36,15 @@ pipeline {
 
         stage('Merge to main') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'your-credentials-id', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'jenkins')]) {
                     script {
                         sh '''
                         git config user.email "jenkins@email.com"
                         git config user.name "Jenkins"
+                        git fetch origin/dev
                         git checkout main
                         git merge origin/dev
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/MonteCarloTreeSearch.git main
+                        git push git@github.com:BradleyGS1/MonteCarloTreeSearch.git main
                         '''
                     }
                 }
