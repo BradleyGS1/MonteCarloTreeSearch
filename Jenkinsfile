@@ -34,6 +34,20 @@ pipeline {
             }
         }
 
+        stage('Merge to main') {
+            steps {
+                script {
+                    sh '''
+                    git config user.email "jenkins@email.com"
+                    git config user.name "Jenkins"
+                    git checkout main
+                    git merge dev
+                    git push origin main
+                    '''
+                }
+            }
+        }
+
     }
 
     post {
