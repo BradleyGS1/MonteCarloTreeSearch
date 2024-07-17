@@ -40,9 +40,8 @@ pipeline {
                     sh '''
                     git config user.email "jenkins@email.com"
                     git config user.name "Jenkins"
-                    git fetch origin/dev
                     git checkout main
-                    git merge origin/dev
+                    git merge dev
                     git push git@github.com:BradleyGS1/MonteCarloTreeSearch.git main
                     '''
                 }
