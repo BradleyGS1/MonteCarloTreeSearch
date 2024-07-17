@@ -91,7 +91,7 @@ class TicTacToe:
         bool,
         bool,
         dict[str,]
-        ]:
+    ]:
 
         rewards = np.zeros(shape=2, dtype=np.float32)
         terminated = False
