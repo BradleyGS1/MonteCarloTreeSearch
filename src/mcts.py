@@ -171,13 +171,13 @@ class MCTS:
 
     def selection(self, hash: str) -> int:
         """ Gets the action, from the current state of the env
-        encoded by the provided hash, which is optimal under the 
+        encoded by the provided hash, which is optimal under the
         desired selection criteria (e.g. mean_uct). Selection
         should only be performed in the case where the current
         node/hash has no untried actions.
         ## Inputs:
         - hash : str. Zobrist hash representing the current
-        state of the environment. 
+        state of the environment.
         ## Returns:
         - action : int. The action from the current state
         which is optimal under selection. """
@@ -221,21 +221,21 @@ class MCTS:
 
     def expansion(self, hash: str, legal_actions: set[int]) -> int:
         """ Performs a single expansion step from the current
-        node/hash. This should be repeatedly called after each 
+        node/hash. This should be repeatedly called after each
         env step following the returned action value until the
         step returns None or the game terminates. A value of
         None indicates that the tree has actually expanded.
         ## Inputs:
         - hash : str. Zobrist hash representing the current
-        state of the environment. 
+        state of the environment.
         - legal_actions : set[int]. Set containing the legal
         actions possible from the current state of the env.
         ## Returns:
         - action : int. The action from the current state
         which should be followed. While not None keep
-        performing this operation. Once None is returned then 
-        random action simulation should be performed until the 
-        end of  the game is reached, at which point backprop 
+        performing this operation. Once None is returned then
+        random action simulation should be performed until the
+        end of  the game is reached, at which point backprop
         should then be performed. """
 
         # If the current hash is new then add it to the tree
@@ -277,18 +277,18 @@ class MCTS:
         self.last_action = action
 
         return action
-    
+
     def backprop(self, player: int, win: int) -> None:
-        """ Performs the backpropagation step. This step should 
-        be performed after the random action simulation has 
-        terminated. Each node visited has their visits value 
-        incremented by 1 and those belonging to the winner have 
-        their wins value incremented by 1.0 also. If the game is 
-        a draw then wins are increased by 0.5 for all nodes visited. 
+        """ Performs the backpropagation step. This step should
+        be performed after the random action simulation has
+        terminated. Each node visited has their visits value
+        incremented by 1 and those belonging to the winner have
+        their wins value incremented by 1.0 also. If the game is
+        a draw then wins are increased by 0.5 for all nodes visited.
         ## Inputs:
         - player : int. The player who made the move ending the
         game. Requires a value of 0 for player one and a value
-        of 1 for player two.  
+        of 1 for player two.
         - win : int. Is 0 if the game ended in a draw, otherwise
         takes the value 1. """
 
@@ -296,7 +296,7 @@ class MCTS:
             # Add one visit to each visited node
             self.tree[hash]["visits"] += 1
 
-            # Add one win to each of the visited 
+            # Add one win to each of the visited
             # nodes belonging to the winner
             if not win:
                 self.tree[hash]["wins"] += 0.5
