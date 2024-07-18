@@ -1,6 +1,7 @@
 
 
 import numpy as np
+from tqdm import trange
 
 
 class TicTacToe:
@@ -303,3 +304,43 @@ class MCTS:
 
             elif win and (i+1) % 2 == player:
                 self.tree[hash]["wins"] += 1
+
+    def fit(self, env_fn: callable, n_iters: int) -> None:
+
+        env = env_fn()  # init the env
+
+        pbar = trange(n_iters, ascii=True, desc="Fitting MCTS")
+        for episode in pbar:
+
+            # Reset the env and perform initial expansion step
+            player = 1
+            env_info = env.reset()[-1]
+            hash = env_info["hash"]
+            legal_actions = env_info["legal_actions"]
+            action = self.expansion(hash, legal_actions)
+
+            # Perform expansion steps until either the game is
+            # terminated or the expansion step returns None. If
+            # None is returned this indicates we have discovered
+            # a new node
+            terminated = False
+            win = 0
+            while not terminated and action is not None:
+                player = 1 - player
+                _, _, terminated, _, env_info = env.step(action)
+                hash = env_info["hash"]
+                legal_actions = env_info["legal_actions"]
+                win = env_info["win"]
+                action = self.expansion(hash, legal_actions)
+
+            # Perform random simulation until the game is over
+            while not terminated:
+                player = 1 - player
+                action = np.random.choice(list(legal_actions))
+                _, _, terminated, _, env_info = env.step(action)
+                win = env_info["win"]
+
+            # Perform backprop using the player who ended the
+            # game and whether the game ended in a win or draw
+            self.backprop(player, win)
+            self.cleanup()

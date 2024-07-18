@@ -235,7 +235,8 @@ def test_expansion1():
 # Selection method tests for mcts
 
 def test_selection0():
-    """ Test the first time selection is required. """
+    """ Test the first time selection is required. No
+    actual asserts occur but the test does print"""
 
     mcts = MCTS()
     env = TicTacToe()
@@ -272,9 +273,28 @@ def test_selection0():
     hash = env_info["hash"]
     init_node = mcts.tree[hash]
     print(init_node)
-    
+
     for action, children in init_node["children"].items():
         print(action)
         for child in children:
             print(mcts.tree[child])
     print(mcts.expansion(hash, None))
+
+def test_selection1():
+    """ Test the first selection after many iterations. """
+
+    def env_fn():
+        return TicTacToe()
+    
+    mcts = MCTS()
+    mcts.fit(env_fn, n_iters=2000)  # 2000 iters should be plenty
+
+    # Want to confirm that the init node has less wins than visits.
+    # this is intuitive because the init node belongs to the player
+    # who goes second which in tictactoe is an obvious disadvantage.
+    assert mcts.tree['0'*64]["wins"] < mcts.tree['0'*64]["visits"]
+    assert mcts.tree['0'*64]["visits"] == 2000
+
+    # Want to confirm that the best first action is 4 in tictactoe
+    # ie the middle slot which is an obvious spatial advantage
+    assert mcts.expansion('0'*64, None) == 4
