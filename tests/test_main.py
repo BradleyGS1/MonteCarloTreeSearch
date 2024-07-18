@@ -151,6 +151,8 @@ def test_expansion0():
     action = mcts.expansion(hash, legal_actions)
     assert action == None
 
+    mcts.cleanup()
+
     env_info = env.reset()[-1]
     legal_actions = env_info["legal_actions"]
     hash = env_info["hash"]
