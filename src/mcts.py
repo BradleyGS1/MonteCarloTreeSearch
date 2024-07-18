@@ -41,22 +41,19 @@ class TicTacToe:
         self.hash = self._hash_xor(self.hash, self.zobrist_array[18])
 
     # Return the legal actions
-    def legal_actions(self) -> set[int]:
-        return self.legal_moves
+    def legal_actions(self) -> np.ndarray[np.int32]:
+        return np.asarray(list(self.legal_moves), dtype=np.int32)
 
     # Reset the env
     def reset(self) -> tuple[np.ndarray[np.float32], dict[str,]]:
-        """ ## Returns:
-        - initial state : np.nddary[np.float32]. First 9 values
-        are 1.0 for player one, -1.0 for player two, 0.0 for
-        available tiles. The final value is the player turn.
-        - env info : dict[str, Any]. Mapping with keys such as
-        'hash', 'win'. """
+        """ Resets the game state.\nReturns: \n
+        - initial state of shape=(10), dtype=np.float32.
+        - env info mapping with keys such as 'hash', 'win'. """
 
         # 1: player one goes first, -1: player two goes second
         self.player_turn = 1
         # All positions in the board can be played on init
-        self.legal_moves = set(range(9))
+        self.legal_moves = set(i for i in range(9))
 
         # Initialise the game state numpy array
         # the first 9 elements are the state of each position
@@ -96,24 +93,6 @@ class TicTacToe:
         bool,
         dict[str,]
     ]:
-        """ Performs a single env step. Follows the gymnasium
-        convention for environments.
-        ## Inputs:
-        - action : int. action is equal to row * 3 + col to
-        place the current players tile.
-        ## Returns:
-        - initial state : np.nddary[np.float32]. First 9 values
-        are 1.0 for player one, -1.0 for player two, 0.0 for
-        unowned tiles. The final value is the player turn.
-        - reward vec : np.ndarray[np.float32]. First value is
-        reward for player one. Second value is for player two.
-        - terminated : bool. True if the game has ended.
-        env.reset() should be called before another game is
-        started.
-        - truncated : bool. Unused (takes the same value as
-        terminated).
-        - env info : dict[str, Any]. Mapping with keys such as
-        'hash', 'win'. """
 
         rewards = np.zeros(shape=2, dtype=np.float32)
         terminated = False
@@ -152,102 +131,3 @@ class TicTacToe:
         self.player_turn *= -1
 
         return self.state.copy(), rewards, terminated, terminated, env_info
-
-
-class MCTS:
-    def __init__(self, explore_factor: float = 1.5, seed: int = 0):
-
-        self.explore_factor = explore_factor
-        np.random.seed(seed)
-
-        self.tree = dict()
-        self.cleanup()
-
-    def cleanup(self) -> None:
-        self.last_action = None
-        self.visited = []
-
-    def selection(self, hash: str) -> int:
-        node = self.tree[hash]
-        action_to_children = node["children"]
-
-        best_action = 0
-        best_uct = 0.0
-        for action, children in action_to_children.items():
-            uct_vals = np.zeros(shape=len(children), dtype=np.float32)
-
-            for i, child in enumerate(children):
-                parents = self.tree[child]["parents"]
-                parent_nodes = [self.tree[parent] for parent in parents]
-
-                if len(parents) > 0:
-                    mean_parent_visits = np.mean(
-                        [p_node["visits"] for p_node in parent_nodes],
-                        dtype=np.float32
-                    )
-                    log_mpv = np.log(mean_parent_visits)
-                else:
-                    log_mpv = np.float32(0.0)
-
-                wins = self.tree[child]["wins"]
-                visits = self.tree[child]["visits"]
-
-                win_freq = wins / visits
-                explore_score = np.sqrt(log_mpv / visits)
-
-                uct_value = win_freq + self.explore_factor * explore_score
-                uct_vals[i] = uct_value
-
-            mean_uct_val = np.mean(uct_vals)
-            if mean_uct_val > best_uct:
-                best_uct = mean_uct_val
-                best_action = action
-
-        return best_action
-
-    def expansion(self, hash: str, legal_actions: set[int]) -> tuple[
-        int,
-        int
-    ]:
-        # If the current hash is new then add it to the tree
-        if hash not in self.tree:
-            action = np.random.choice(list(legal_actions))
-            done = 1
-
-            node_info = {
-                "untried_actions": legal_actions.copy(),
-                "parents": set(),
-                "children": {action: [] for action in legal_actions},
-                "visits": 0,
-                "wins": 0
-            }
-            self.tree[hash] = node_info
-
-        # If the current hash has untried actions then return one of them
-        # at random
-        elif len(self.tree[hash]["untried_actions"]) > 0:
-            untried_actions = self.tree[hash]["untried_actions"]
-            action = np.random.choice(list(untried_actions))
-            done = 0
-
-        # If the current hash has no untried actions then return the best
-        # action in accordance with the selection method
-        else:
-            action = self.selection(hash)
-            done = 0
-
-        # Add parent and child information, remove the last action performed
-        # from the set of untried actions for the previous hash
-        parents = self.tree[hash]["parents"]
-        if len(self.visited) > 0 and self.visited[-1] not in parents:
-            parent_hash = self.visited[-1]
-            parents.add(parent_hash)
-            self.tree[parent_hash]["children"][self.last_action].append(hash)
-            self.tree[parent_hash]["untried_actions"].discard(self.last_action)
-
-        # Add the current hash to the list of visited hashes
-        self.visited.append(hash)
-        # Update the last action value
-        self.last_action = action
-
-        return action, done
