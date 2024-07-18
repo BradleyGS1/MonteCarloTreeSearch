@@ -28,6 +28,8 @@ def test_zobrist0():
         assert len(hash0) == 64
         assert hash0 == hash1 and hash1 == hash2
 
+    print("Passed Test: test_zobrist0")
+
 def test_zobrist1():
     """ Test that the _hash_xor method in tictactoe works as expected."""
 
@@ -50,6 +52,8 @@ def test_zobrist1():
 
     for hash0, hash1, result in zip(hashes0, hashes1, results):
         assert result == env._hash_xor(hash0, hash1)
+
+    print("Passed Test: test_zobrist1")
 
 def test_zobrist2():
     """ Test that the order in which actions are played does not change
@@ -79,6 +83,8 @@ def test_zobrist2():
             hash1 = env1.step(action)[-1]["hash"]
         assert hash0 == hash1
 
+    print("Passed Test: test_zobrist2")
+
 # Reset method related tests for tictactoe
 
 def test_reset0():
@@ -100,6 +106,8 @@ def test_reset0():
         assert env_info["hash"] == "0" * 64
         assert env_info["win"] == 0
         assert env_info["legal_actions"] == set(range(9))
+
+    print("Passed Test: reset0")
 
 # Step method related tests for tictactoe
 
@@ -135,6 +143,8 @@ def test_step0():
 
         assert terminated == true_terminated and win == true_win
 
+    print("Passed Test: test_step0")
+
 # Expansion method tests for MCTS
 
 def test_expansion0():
@@ -166,6 +176,8 @@ def test_expansion0():
 
     action = mcts.expansion(hash, legal_actions)
     assert action == None
+
+    print("Passed Test: test_expansion0")
 
 def test_expansion1():
     """ Test the tree information while performing
@@ -232,6 +244,8 @@ def test_expansion1():
     parents_children_dict[prev_action].append(hash)
     assert mcts.tree[parent_hash]["children"] == parents_children_dict
 
+    print("Passed Test: test_expansion1")
+
 # Selection method tests for mcts
 
 def test_selection0():
@@ -280,6 +294,8 @@ def test_selection0():
             print(mcts.tree[child])
     print(mcts.expansion(hash, None))
 
+    print("Passed Test: test_selection0")
+
 def test_selection1():
     """ Test the first selection after many iterations. """
 
@@ -298,3 +314,5 @@ def test_selection1():
     # Want to confirm that the best first action is 4 in tictactoe
     # ie the middle slot which is an obvious spatial advantage
     assert mcts.expansion('0'*64, None) == 4
+
+    print("Passed Test: test_selection1")
