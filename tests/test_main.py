@@ -107,7 +107,7 @@ def test_reset0():
         assert env_info["win"] == 0
         assert env_info["legal_actions"] == set(range(9))
 
-    print("Passed Test: reset0")
+    print("Passed Test: test_reset0")
 
 # Step method related tests for tictactoe
 
@@ -305,10 +305,10 @@ def test_selection1():
     mcts = MCTS()
     mcts.fit(env_fn, n_iters=2000)  # 2000 iters should be plenty
 
-    # Want to confirm that the init node has less wins than visits.
+    # Want to confirm that the init node has less wins than 0.6*visits.
     # this is intuitive because the init node belongs to the player
     # who goes second which in tictactoe is an obvious disadvantage.
-    assert mcts.tree['0'*64]["wins"] < mcts.tree['0'*64]["visits"]
+    assert mcts.tree['0'*64]["wins"] < 0.6 * mcts.tree['0'*64]["visits"]
     assert mcts.tree['0'*64]["visits"] == 2000
 
     # Want to confirm that the best first action is 4 in tictactoe
