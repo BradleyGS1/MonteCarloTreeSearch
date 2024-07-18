@@ -240,10 +240,10 @@ def test_selection0():
     mcts = MCTS()
     env = TicTacToe()
 
-    # It takes 9 full mcts loops before the initial state
+    # It takes 10 full mcts loops before the initial state
     # has run out of untried actions
 
-    for _ in range(9):
+    for _ in range(10):
         env_info = env.reset()[-1]
         hash = env_info["hash"]
         legal_actions = env_info["legal_actions"]
