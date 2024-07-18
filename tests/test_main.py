@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 
 import numpy as np
 
-from mcts import TicTacToe
+from mcts import TicTacToe, MCTS
 
 
 # Zobrist related tests for tictactoe
@@ -99,8 +99,7 @@ def test_reset0():
 
         assert env_info["hash"] == "0" * 64
         assert env_info["win"] == 0
-        assert np.all(
-            env_info["legal_actions"] == np.arange(9, dtype=np.int32))
+        assert env_info["legal_actions"] == set(range(9))
 
 # Step method related tests for tictactoe
 
@@ -136,3 +135,98 @@ def test_step0():
 
         assert terminated == true_terminated and win == true_win
 
+# Expansion method tests for MCTS
+
+def test_expansion0():
+    """ Test the return values are correct. Not
+    testing selection method yet. """
+
+    mcts = MCTS()
+    env = TicTacToe()
+
+    env_info = env.reset()[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+
+    result = mcts.expansion(hash, legal_actions)
+    assert type(result[0]) == int
+    assert result[1] == 1
+
+    env_info = env.reset()[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+
+    result = mcts.expansion(hash, legal_actions)
+    assert result[1] == 0
+
+    env_info = env.step(0)[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+
+    result = mcts.expansion(hash, legal_actions)
+    assert result[1] == 1
+
+def test_expansion1():
+    """ Test the tree information while performing
+    expansion steps is correct. """
+
+    mcts = MCTS()
+    env = TicTacToe()
+
+    assert len(mcts.tree) == 0
+
+    hashes = []
+    env_info = env.reset()[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+    hashes.append(hash)
+
+    action, done = mcts.expansion(hash, legal_actions)
+    assert mcts.visited == hashes
+    assert len(mcts.tree) == 1
+    assert len(mcts.tree[hash]["untried_actions"]) == 9
+    assert mcts.tree[hash]["parents"] == set()
+    assert mcts.tree[hash]["children"] == {
+        action: [] for action in legal_actions
+    }
+
+    mcts.cleanup()
+
+    hashes = []
+    env_info = env.reset()[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+    hashes.append(hash)
+
+    action, done = mcts.expansion(hash, legal_actions)
+    assert mcts.visited == hashes
+    assert len(mcts.tree) == 1
+    assert len(mcts.tree[hash]["untried_actions"]) == 9
+    assert mcts.tree[hash]["parents"] == set()
+    assert mcts.tree[hash]["children"] == {
+        action: [] for action in legal_actions
+    }
+
+    parent_hash = hash
+    env_info = env.step(action)[-1]
+    legal_actions = env_info["legal_actions"]
+    hash = env_info["hash"]
+    hashes.append(hash)
+
+    prev_action = action
+    action, done = mcts.expansion(hash, legal_actions)
+    assert mcts.visited == hashes
+    assert len(mcts.tree) == 2
+    assert len(mcts.tree[hash]["untried_actions"]) == 8
+    assert mcts.tree[hash]["parents"] == set([parent_hash])
+    assert mcts.tree[hash]["children"] == {
+        action: [] for action in legal_actions
+    }
+
+    assert len(mcts.tree[parent_hash]["untried_actions"]) == 8
+    assert mcts.tree[parent_hash]["parents"] == set()
+    parents_children_dict = {
+        action: [] for action in range(9)
+    }
+    parents_children_dict[prev_action].append(hash)
+    assert mcts.tree[parent_hash]["children"] == parents_children_dict
