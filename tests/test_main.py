@@ -148,23 +148,24 @@ def test_expansion0():
     legal_actions = env_info["legal_actions"]
     hash = env_info["hash"]
 
-    result = mcts.expansion(hash, legal_actions)
-    assert type(result[0]) == int
-    assert result[1] == 1
+    action = mcts.expansion(hash, legal_actions)
+    assert action == None
+
+    mcts.cleanup()
 
     env_info = env.reset()[-1]
     legal_actions = env_info["legal_actions"]
     hash = env_info["hash"]
 
-    result = mcts.expansion(hash, legal_actions)
-    assert result[1] == 0
+    action = mcts.expansion(hash, legal_actions)
+    assert action != None
 
     env_info = env.step(0)[-1]
     legal_actions = env_info["legal_actions"]
     hash = env_info["hash"]
 
-    result = mcts.expansion(hash, legal_actions)
-    assert result[1] == 1
+    action = mcts.expansion(hash, legal_actions)
+    assert action == None
 
 def test_expansion1():
     """ Test the tree information while performing
@@ -181,13 +182,13 @@ def test_expansion1():
     hash = env_info["hash"]
     hashes.append(hash)
 
-    action, done = mcts.expansion(hash, legal_actions)
+    action = mcts.expansion(hash, legal_actions)
     assert mcts.visited == hashes
     assert len(mcts.tree) == 1
     assert len(mcts.tree[hash]["untried_actions"]) == 9
     assert mcts.tree[hash]["parents"] == set()
     assert mcts.tree[hash]["children"] == {
-        action: [] for action in legal_actions
+        a: [] for a in legal_actions
     }
 
     mcts.cleanup()
@@ -198,13 +199,13 @@ def test_expansion1():
     hash = env_info["hash"]
     hashes.append(hash)
 
-    action, done = mcts.expansion(hash, legal_actions)
+    action = mcts.expansion(hash, legal_actions)
     assert mcts.visited == hashes
     assert len(mcts.tree) == 1
     assert len(mcts.tree[hash]["untried_actions"]) == 9
     assert mcts.tree[hash]["parents"] == set()
     assert mcts.tree[hash]["children"] == {
-        action: [] for action in legal_actions
+        a: [] for a in legal_actions
     }
 
     parent_hash = hash
@@ -214,19 +215,66 @@ def test_expansion1():
     hashes.append(hash)
 
     prev_action = action
-    action, done = mcts.expansion(hash, legal_actions)
+    action = mcts.expansion(hash, legal_actions)
     assert mcts.visited == hashes
     assert len(mcts.tree) == 2
     assert len(mcts.tree[hash]["untried_actions"]) == 8
     assert mcts.tree[hash]["parents"] == set([parent_hash])
     assert mcts.tree[hash]["children"] == {
-        action: [] for action in legal_actions
+        a: [] for a in legal_actions
     }
 
     assert len(mcts.tree[parent_hash]["untried_actions"]) == 8
     assert mcts.tree[parent_hash]["parents"] == set()
     parents_children_dict = {
-        action: [] for action in range(9)
+        a: [] for a in range(9)
     }
     parents_children_dict[prev_action].append(hash)
     assert mcts.tree[parent_hash]["children"] == parents_children_dict
+
+# Selection method tests for mcts
+
+def test_selection0():
+    """ Test the first time selection is required. """
+
+    mcts = MCTS()
+    env = TicTacToe()
+
+    # It takes 10 full mcts loops before the initial state
+    # has run out of untried actions
+
+    for _ in range(10):
+        env_info = env.reset()[-1]
+        hash = env_info["hash"]
+        legal_actions = env_info["legal_actions"]
+        action = mcts.expansion(hash, legal_actions)
+
+        player = 1
+        while action is not None:
+            player = 1 - player
+            env_info = env.step(action)[-1]
+            hash = env_info["hash"]
+            legal_actions = env_info["legal_actions"]
+            action = mcts.expansion(hash, legal_actions)
+
+        terminated = False
+        while not terminated:
+            action = np.random.choice(list(legal_actions))
+            player = 1 - player
+            _, _, terminated, _, env_info = env.step(action)
+            legal_actions = env_info["legal_actions"]
+            win = env_info["win"]
+
+        mcts.backprop(player, win)
+        mcts.cleanup()
+
+    env_info = env.reset()[-1]
+    hash = env_info["hash"]
+    init_node = mcts.tree[hash]
+    print(init_node)
+    
+    for action, children in init_node["children"].items():
+        print(action)
+        for child in children:
+            print(mcts.tree[child])
+    print(mcts.expansion(hash, None))

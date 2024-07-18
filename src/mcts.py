@@ -164,10 +164,24 @@ class MCTS:
         self.cleanup()
 
     def cleanup(self) -> None:
+        """ Cleanup must be performed immediately after backprop. """
+
         self.last_action = None
         self.visited = []
 
     def selection(self, hash: str) -> int:
+        """ Gets the action, from the current state of the env
+        encoded by the provided hash, which is optimal under the
+        desired selection criteria (e.g. mean_uct). Selection
+        should only be performed in the case where the current
+        node/hash has no untried actions.
+        ## Inputs:
+        - hash : str. Zobrist hash representing the current
+        state of the environment.
+        ## Returns:
+        - action : int. The action from the current state
+        which is optimal under selection. """
+
         node = self.tree[hash]
         action_to_children = node["children"]
 
@@ -205,14 +219,28 @@ class MCTS:
 
         return best_action
 
-    def expansion(self, hash: str, legal_actions: set[int]) -> tuple[
-        int,
-        int
-    ]:
+    def expansion(self, hash: str, legal_actions: set[int]) -> int:
+        """ Performs a single expansion step from the current
+        node/hash. This should be repeatedly called after each
+        env step following the returned action value until the
+        step returns None or the game terminates. A value of
+        None indicates that the tree has actually expanded.
+        ## Inputs:
+        - hash : str. Zobrist hash representing the current
+        state of the environment.
+        - legal_actions : set[int]. Set containing the legal
+        actions possible from the current state of the env.
+        ## Returns:
+        - action : int. The action from the current state
+        which should be followed. While not None keep
+        performing this operation. Once None is returned then
+        random action simulation should be performed until the
+        end of  the game is reached, at which point backprop
+        should then be performed. """
+
         # If the current hash is new then add it to the tree
         if hash not in self.tree:
-            action = np.random.choice(list(legal_actions))
-            done = 1
+            action = None
 
             node_info = {
                 "untried_actions": legal_actions.copy(),
@@ -227,14 +255,12 @@ class MCTS:
         # at random
         elif len(self.tree[hash]["untried_actions"]) > 0:
             untried_actions = self.tree[hash]["untried_actions"]
-            action = np.random.choice(list(untried_actions))
-            done = 0
+            action = int(np.random.choice(list(untried_actions)))
 
         # If the current hash has no untried actions then return the best
         # action in accordance with the selection method
         else:
             action = self.selection(hash)
-            done = 0
 
         # Add parent and child information, remove the last action performed
         # from the set of untried actions for the previous hash
@@ -250,4 +276,30 @@ class MCTS:
         # Update the last action value
         self.last_action = action
 
-        return int(action), done
+        return action
+
+    def backprop(self, player: int, win: int) -> None:
+        """ Performs the backpropagation step. This step should
+        be performed after the random action simulation has
+        terminated. Each node visited has their visits value
+        incremented by 1 and those belonging to the winner have
+        their wins value incremented by 1.0 also. If the game is
+        a draw then wins are increased by 0.5 for all nodes visited.
+        ## Inputs:
+        - player : int. The player who made the move ending the
+        game. Requires a value of 0 for player one and a value
+        of 1 for player two.
+        - win : int. Is 0 if the game ended in a draw, otherwise
+        takes the value 1. """
+
+        for i, hash in enumerate(self.visited):
+            # Add one visit to each visited node
+            self.tree[hash]["visits"] += 1
+
+            # Add one win to each of the visited
+            # nodes belonging to the winner
+            if not win:
+                self.tree[hash]["wins"] += 0.5
+
+            elif win and (i+1) % 2 == player:
+                self.tree[hash]["wins"] += 1
