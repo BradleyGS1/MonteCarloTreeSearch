@@ -30,7 +30,7 @@ pipeline {
             steps {
                 // Run tests using pytest
                 sh './venv/bin/pip install pytest'
-                sh './venv/bin/pytest tests/'
+                sh './venv/bin/pytest -s tests/'
             }
         }
     }
