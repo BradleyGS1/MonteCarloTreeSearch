@@ -7,7 +7,7 @@ from mcts import TicTacToe, MCTS
 def main():
     def env_fn():
         return TicTacToe()
-    
+
     mcts = MCTS()
 
     mcts.fit(env_fn, n_iters=2000)
@@ -17,7 +17,7 @@ def main():
         '0100011001000101101001110011000010100111111011100011110110110001',
         '0000110111000011111100000010001010110101101101001001010100010111'
     ]
-    
+
     for hash in hashes:
         pprint(mcts.tree[hash])
 
