@@ -250,4 +250,4 @@ class MCTS:
         # Update the last action value
         self.last_action = action
 
-        return action, done
+        return int(action), done
