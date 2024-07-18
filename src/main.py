@@ -23,5 +23,6 @@ def main():
 
     print(f"Best first action {mcts.expansion('0'*64, None)}")
 
+
 if __name__ == "__main__":
     main()
