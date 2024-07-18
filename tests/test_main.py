@@ -226,7 +226,7 @@ def test_expansion1():
     assert len(mcts.tree[parent_hash]["untried_actions"]) == 8
     assert mcts.tree[parent_hash]["parents"] == set()
     parents_children_dict = {
-        action: [] for action in legal_actions
+        action: [] for action in range(9)
     }
     parents_children_dict[prev_action].append(hash)
     assert mcts.tree[parent_hash]["children"] == parents_children_dict
