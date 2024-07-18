@@ -301,5 +301,5 @@ class MCTS:
             if not win:
                 self.tree[hash]["wins"] += 0.5
 
-            elif win and i % 2 == player:
+            elif win and (i+1) % 2 == player:
                 self.tree[hash]["wins"] += 1
