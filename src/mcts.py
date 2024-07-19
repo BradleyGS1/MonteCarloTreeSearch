@@ -1,6 +1,11 @@
 
 
+import sys
+from copy import deepcopy
+
 import numpy as np
+from tqdm import trange
+from pprint import pprint
 
 
 class TicTacToe:
@@ -163,6 +168,19 @@ class MCTS:
         self.tree = dict()
         self.cleanup()
 
+        self.eval_history = []
+
+    def size(self) -> float:
+        """ Returns the size of the tree in MB rounded to four
+        decimal places. """
+        total_size = (
+            sys.getsizeof(self.tree)
+            +
+            sys.getsizeof(self.prev_mcts.tree)
+        )
+
+        return round(total_size * 1e-6, 4)
+
     def cleanup(self) -> None:
         """ Cleanup must be performed immediately after backprop. """
 
@@ -303,3 +321,149 @@ class MCTS:
 
             elif win and (i+1) % 2 == player:
                 self.tree[hash]["wins"] += 1
+
+    def evaluate(self, env, eval_iters: int) -> None:
+
+        explore_factor = self.explore_factor
+        self.explore_factor = 0.0
+        eval_info = {
+            "random": {"wins": 0, "draws": 0, "losses": 0, "score": 0.0},
+            "previous": {"wins": 0, "draws": 0, "losses": 0, "score": 0.0}
+        }
+        for opp, eval_entry in eval_info.items():
+
+            for _ in range(eval_iters):
+
+                # Randomly choose which player the mcts will be
+                tree_player = np.random.randint(2)
+
+                # Reset the env
+                player = 1
+                env_info = env.reset()[-1]
+                hash = env_info["hash"]
+
+                # Perform selection until the new hash is unseen or
+                # has untried actions. Then perform random actions
+                # until the game is over
+                terminated = False
+                win = 0
+                while not terminated:
+
+                    player = 1 - player
+                    if player == tree_player:
+                        curr_mcts = self
+                    else:
+                        curr_mcts = self.prev_mcts
+                    curr_tree = curr_mcts.tree
+
+                    get_random = (
+                        (opp == "random" and player != tree_player)
+                        or
+                        hash not in curr_tree
+                        or
+                        len(curr_tree[hash]["untried_actions"]) > 0
+                    )
+
+                    legal_actions = env_info["legal_actions"]
+                    if get_random:
+                        action = np.random.choice(list(legal_actions))
+                    else:
+                        action = curr_mcts.selection(hash)
+                        if action not in legal_actions:
+                            action = np.random.choice(list(legal_actions))
+
+                    _, _, terminated, _, env_info = env.step(action)
+                    hash = env_info["hash"]
+                    win = env_info["win"]
+
+                # Update eval info
+                if win and player == tree_player:
+                    eval_entry["wins"] += 1
+                    eval_entry["score"] += 1.0
+                elif not win:
+                    eval_entry["draws"] += 1
+                    eval_entry["score"] += 0.5
+                else:
+                    eval_entry["losses"] += 1
+
+                win_rate = round(eval_entry["wins"] / eval_iters, 3)
+                eval_entry["win_rate"] = win_rate
+
+        self.eval_history.append(eval_info)
+        self.prev_mcts = deepcopy(self)
+        self.explore_factor = explore_factor
+
+    def fit(
+        self,
+        env_fn: callable,
+        n_iters: int,
+        eval_every: int,
+        eval_iters: int
+    ) -> None:
+
+        """ Fits the Monte Carlo Tree Search algorithm to the
+        environment returned by env_fn(). This implementation
+        assumes that the environment follows the gymnasium
+        convention as seen in
+        https://gymnasium.farama.org/index.html. The player
+        whose turn it is should also alternate with prob 1.0
+        after every step of the environment. It also assumes
+        that the game returns an env_info dict after every
+        env.reset() and env.step(action) call which contains
+        items; "hash": zobrist_hash (str), "win": win_flag (int),
+        "legal_actions": legal_actions (set[int]).
+        ## Inputs:
+        - env_fn : function. Function with no inputs that returns
+        an instantiated environment.
+        - n_iters : int. The number of backpropagation steps to
+        perform. This is equivalent to the number of episodes
+        to play. """
+
+        env = env_fn()  # init the env
+
+        if not hasattr(self, "prev_mcts"):
+            self.prev_mcts = deepcopy(self)
+
+        pbar = trange(n_iters, ascii=True, desc="Fitting MCTS")
+        for episode in pbar:
+            pbar.set_postfix_str(
+                f"memory_usage= {self.size()}MB"
+            )
+
+            # Reset the env and perform initial expansion step
+            player = 1
+            env_info = env.reset()[-1]
+            hash = env_info["hash"]
+            legal_actions = env_info["legal_actions"]
+            action = self.expansion(hash, legal_actions)
+
+            # Perform expansion steps until either the game is
+            # terminated or the expansion step returns None. If
+            # None is returned this indicates we have discovered
+            # a new node
+            terminated = False
+            win = 0
+            while not terminated and action is not None:
+                player = 1 - player
+                _, _, terminated, _, env_info = env.step(action)
+                hash = env_info["hash"]
+                legal_actions = env_info["legal_actions"]
+                win = env_info["win"]
+                action = self.expansion(hash, legal_actions)
+
+            # Perform random simulation until the game is over
+            while not terminated:
+                player = 1 - player
+                action = np.random.choice(list(legal_actions))
+                _, _, terminated, _, env_info = env.step(action)
+                win = env_info["win"]
+
+            # Perform backprop using the player who ended the
+            # game and whether the game ended in a win or draw
+            self.backprop(player, win)
+            self.cleanup()
+
+            if episode % eval_every == eval_every - 1:
+                self.evaluate(env, eval_iters)
+                pprint(f"Evaluation: {self.eval_history[-1]}")
+                print()
