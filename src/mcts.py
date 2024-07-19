@@ -394,12 +394,12 @@ class MCTS:
         self.explore_factor = explore_factor
 
     def fit(
-            self,
-            env_fn: callable,
-            n_iters: int,
-            eval_every: int,
-            eval_iters: int
-        ) -> None:
+        self,
+        env_fn: callable,
+        n_iters: int,
+        eval_every: int,
+        eval_iters: int
+    ) -> None:
 
         """ Fits the Monte Carlo Tree Search algorithm to the
         environment returned by env_fn(). This implementation
