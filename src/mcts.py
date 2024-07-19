@@ -386,13 +386,21 @@ class MCTS:
                 else:
                     eval_entry["losses"] += 1
 
-                eval_entry["win_rate"] = round(eval_entry["wins"] / eval_iters, 3)
+                win_rate = round(eval_entry["wins"] / eval_iters, 3)
+                eval_entry["win_rate"] = win_rate
 
         self.eval_history.append(eval_info)
         self.prev_mcts = deepcopy(self)
         self.explore_factor = explore_factor
 
-    def fit(self, env_fn: callable, n_iters: int, eval_every: int, eval_iters: int) -> None:
+    def fit(
+            self,
+            env_fn: callable,
+            n_iters: int,
+            eval_every: int,
+            eval_iters: int
+        ) -> None:
+
         """ Fits the Monte Carlo Tree Search algorithm to the
         environment returned by env_fn(). This implementation
         assumes that the environment follows the gymnasium
