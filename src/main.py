@@ -10,7 +10,7 @@ def main():
 
     mcts = MCTS()
 
-    mcts.fit(env_fn, n_iters=2000)
+    mcts.fit(env_fn, n_iters=10000, eval_every=1000, eval_iters=1000)
     hashes = [
         '0000000000000000000000000000000000000000000000000000000000000000',
         '0001010001000010010110111110000110101111100000110010001011001011',
@@ -21,6 +21,7 @@ def main():
     for hash in hashes:
         pprint(mcts.tree[hash])
 
+    mcts.explore_factor = 0.0
     print(f"Best first action {mcts.expansion('0'*64, None)}")
 
 

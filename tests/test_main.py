@@ -301,9 +301,10 @@ def test_selection1():
 
     def env_fn():
         return TicTacToe()
-    
+
     mcts = MCTS()
-    mcts.fit(env_fn, n_iters=2000)  # 2000 iters should be plenty
+    # 2000 iters should be plenty
+    mcts.fit(env_fn, n_iters=2000, eval_every=2001, eval_iters=0)
 
     # Want to confirm that the init node has less wins than 0.6*visits.
     # this is intuitive because the init node belongs to the player
@@ -313,6 +314,29 @@ def test_selection1():
 
     # Want to confirm that the best first action is 4 in tictactoe
     # ie the middle slot which is an obvious spatial advantage
+    mcts.explore_factor = 0.0
     assert mcts.expansion('0'*64, None) == 4
 
     print("Passed Test: test_selection1")
+
+# General performance tests for mcts
+
+def test_general0():
+
+    def env_fn():
+        return TicTacToe()
+
+    mcts = MCTS()
+    mcts.fit(env_fn, n_iters=10000, eval_every=1000, eval_iters=1000)
+    eval_info = mcts.eval_history[-1]
+
+    # Want to confirm that against the random action playing opponent
+    # that we win the vast majority of the time, more than 70%
+    assert eval_info["random"]["win_rate"] > 0.7
+
+    # Also want to confirm that against the previous iteration opponent
+    # that we win or draw every time. In tictactoe perfect play always
+    # leads to a draw hence not just checking for high wins
+    assert eval_info["previous"]["losses"] == 0
+
+    print("Passed Test: test_general0")
