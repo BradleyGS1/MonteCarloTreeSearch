@@ -278,7 +278,11 @@ class Othello:
 
     # Display the game board
     def display(self) -> None:
-        board_str = "  A B C D E F G H \n"
+        player_one_count = int(np.sum(self.state == +1.0))
+        player_two_count = int(np.sum(self.state == -1.0))
+        board_str = f"X: {player_one_count}\tY: {player_two_count} \n"
+
+        board_str += "  A B C D E F G H \n"
         for i in range(8):
             board_str += f"{i+1} "
             for j in range(8):
@@ -450,14 +454,24 @@ class Othello:
 
 
 class MCTS:
-    def __init__(self, explore_factor: float = 1.5, seed: int = 0):
+    def __init__(
+        self,
+        explore_factor: float = 1.5,
+        prune_visits: int = 1000,
+        prune_ratio: float = 0.35,
+        seed: int = 0
+    ):
 
         self.explore_factor = explore_factor
+        self.prune_visits = prune_visits
+        self.prune_ratio = prune_ratio
         np.random.seed(seed)
 
         self.tree = dict()
+        self.tree_size = 0
         self.cleanup()
 
+        self.max_depth = 0
         self.eval_history = []
 
     def size(self) -> float:
@@ -499,26 +513,28 @@ class MCTS:
             uct_vals = np.zeros(shape=len(children), dtype=np.float32)
 
             for i, child in enumerate(children):
-                parents = self.tree[child]["parents"]
-                parent_nodes = [self.tree[parent] for parent in parents]
+                child_node = self.tree[child]
+                if not child_node["pruned"]:
+                    parents = child_node["parents"]
+                    parent_nodes = [self.tree[parent] for parent in parents]
 
-                if len(parents) > 0:
-                    mean_parent_visits = np.mean(
-                        [p_node["visits"] for p_node in parent_nodes],
-                        dtype=np.float32
-                    )
-                    log_mpv = np.log(mean_parent_visits)
-                else:
-                    log_mpv = np.float32(0.0)
+                    if len(parents) > 0:
+                        mean_parent_visits = np.mean(
+                            [p_node["visits"] for p_node in parent_nodes],
+                            dtype=np.float32
+                        )
+                        log_mpv = np.log(mean_parent_visits)
+                    else:
+                        log_mpv = np.float32(0.0)
 
-                wins = self.tree[child]["wins"]
-                visits = self.tree[child]["visits"]
+                    wins = child_node["wins"]
+                    visits = child_node["visits"]
 
-                win_freq = wins / visits
-                explore_score = np.sqrt(log_mpv / visits)
+                    win_freq = wins / visits
+                    explore_score = np.sqrt(log_mpv / visits)
 
-                uct_value = win_freq + self.explore_factor * explore_score
-                uct_vals[i] = uct_value
+                    uct_value = win_freq + self.explore_factor * explore_score
+                    uct_vals[i] = uct_value
 
             mean_uct_val = np.mean(uct_vals)
             if mean_uct_val > best_uct:
@@ -549,9 +565,11 @@ class MCTS:
         # If the current hash is new then add it to the tree
         if hash not in self.tree:
             action = None
+            depth = 10 ** 20
 
             if len(self.tree) == 0:
                 self.root_hash = hash
+                depth = 0
 
             if len(legal_actions) == 0:
                 legal_actions = {0}
@@ -560,10 +578,13 @@ class MCTS:
                 "untried_actions": legal_actions.copy(),
                 "parents": set(),
                 "children": {action: [] for action in legal_actions},
+                "depth": depth,
+                "pruned": False,
                 "visits": 0,
                 "wins": 0
             }
             self.tree[hash] = node_info
+            self.tree_size += 1
 
         # If the current hash has untried actions then return one of them
         # at random
@@ -578,12 +599,20 @@ class MCTS:
 
         # Add parent and child information, remove the last action performed
         # from the set of untried actions for the previous hash
+        curr_depth = self.tree[hash]["depth"]
         parents = self.tree[hash]["parents"]
         if len(self.visited) > 0 and self.visited[-1] not in parents:
             parent_hash = self.visited[-1]
+            parent_depth = self.tree[parent_hash]["depth"]
             parents.add(parent_hash)
+
+            if parent_depth + 1 < curr_depth:
+                self.tree[hash]["depth"] = parent_depth + 1
+                self.max_depth = max(self.max_depth, parent_depth + 1)
+
             self.tree[parent_hash]["children"][self.last_action].append(hash)
-            self.tree[parent_hash]["untried_actions"].discard(self.last_action)
+            self.tree[parent_hash]["untried_actions"].discard(
+                self.last_action)
 
         # Add the current hash to the list of visited hashes
         self.visited.append(hash)
@@ -615,6 +644,18 @@ class MCTS:
 
             elif i % 2 == winner % 2:
                 self.tree[hash]["wins"] += 1.0
+
+            # Prune the node if it has visits greater than the
+            # prune_visits value and a win_freq less than the
+            # prune_ratio
+            pruned = self.tree[hash]["pruned"]
+            visits = self.tree[hash]["visits"]
+            wins = self.tree[hash]["wins"]
+            valid_visits = visits > self.prune_visits
+            valid_ratio = wins / visits < self.prune_ratio
+            if not pruned and valid_visits and valid_ratio:
+                self.tree[hash]["pruned"] = True
+                self.tree_size -= 1
 
     def evaluate(self, env, eval_iters: int) -> dict[str,]:
 
@@ -673,7 +714,7 @@ class MCTS:
                     winner = env_info["winner"]
 
                 # Update eval info
-                if winner - 1 == player:
+                if winner - 1 == tree_player:
                     eval_entry["wins"] += 1
                     eval_entry["score"] += 1.0
                 elif winner == 0:
@@ -717,12 +758,14 @@ class MCTS:
         env = env_fn()  # init the env
 
         if not hasattr(self, "prev_mcts"):
-            self.prev_mcts = MCTS(self.explore_factor)
+            # Initialise another mcts that is periodically updated
+            # to the parent mcts object for evaluation purposes
+            self.prev_mcts = MCTS(explore_factor=0.0)
 
         pbar = trange(n_iters, ascii=True, desc="Fitting MCTS")
         for episode in pbar:
             pbar.set_postfix_str(
-                f"tree_size={len(self.tree)}, memory_usage={self.size()}MB"
+                f"tree_size={self.tree_size}, max_depth={self.max_depth}, memory_usage={self.size()}MB"
             )
 
             # Reset the env and perform initial expansion step
