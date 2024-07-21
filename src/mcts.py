@@ -51,7 +51,8 @@ class TicTacToe:
 
     # Reset the env
     def reset(self) -> tuple[np.ndarray[np.float32], dict[str,]]:
-        """ ## Returns:
+        """ Reset the environment ready for a new game.
+        ## Returns:
         - initial state : np.nddary[np.float32]. First 9 values
         are 1.0 for player one, -1.0 for player two, 0.0 for
         available tiles. The final value is the player turn.
@@ -75,7 +76,7 @@ class TicTacToe:
         env_info = dict()
         env_info["legal_actions"] = self.legal_actions()
         env_info["hash"] = self.hash
-        env_info["win"] = 0
+        env_info["winner"] = 0
 
         return self.state.copy(), env_info
 
@@ -125,7 +126,7 @@ class TicTacToe:
         env_info = dict()
         env_info["legal_actions"] = self.legal_actions()
         env_info["hash"] = self.hash
-        env_info["win"] = 0
+        env_info["winner"] = 0
 
         if action not in self.legal_moves:
             print("Illegal move made.")
@@ -149,7 +150,7 @@ class TicTacToe:
             rewards[player_idx] = 1.0
             rewards[1-player_idx] = -1.0
             terminated = True
-            env_info["win"] = 1
+            env_info["winner"] = player_idx + 1
 
         elif len(self.legal_moves) == 0:
             terminated = True
@@ -157,6 +158,295 @@ class TicTacToe:
         self.player_turn *= -1
 
         return self.state.copy(), rewards, terminated, terminated, env_info
+
+
+class Othello:
+    def __init__(self, render: int = 0, verbose: int = 0, seed: int = 0):
+        # Set the fixed np.random seed for initialising the zobrist array
+        np.random.seed(3429)
+        self._init_zobrist()
+
+        self.render = render
+        self.verbose = verbose
+
+        # Set the np.random seed for generating random actions
+        np.random.seed(seed)
+
+    # Initialise the zobrist hash element array
+    def _init_zobrist(self) -> None:
+        self.zobrist_array = []
+
+        # There are 2*64+1=129 zobrist hashes (length 64) we need to encode
+        # the full game state 2*64 for each position and player in that pos,
+        # +1 for the player turn
+        for _ in range(129):
+            zobrist = "".join(np.random.choice(["0", "1"], size=64))
+            self.zobrist_array.append(zobrist)
+
+    # Perform an xor on two hashes and return result
+    def _hash_xor(self, hash0: str, hash1: str) -> str:
+        new_hash = []
+        for char0, char1 in zip(hash0, hash1):
+            new_hash.append("0" if char0 == char1 else "1")
+        return "".join(char for char in new_hash)
+
+    # Initialise the zobrist hash
+    def _init_hash(self) -> None:
+        self.hash = "0" * 64
+        zobrist_ids = [28, 35, 91, 100]
+        for zobrist_id in zobrist_ids:
+            zobrist = self.zobrist_array[zobrist_id]
+            self.hash = self._hash_xor(self.hash, zobrist)
+
+    # Update the legal actions array
+    def _update_legal_moves(self):
+        self.legal_moves = set()
+        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        player = self.player_turn
+        opponent = self.player_turn * -1
+
+        def is_on_board(x, y):
+            return 0 <= x < 8 and 0 <= y < 8
+
+        for x_init in range(8):
+            for y_init in range(8):
+                if self.state[x_init, y_init] == 0.0:
+                    for dx, dy in directions:
+                        x = x_init + dx
+                        y = y_init + dy
+                        found_opponent = False
+                        while (
+                            is_on_board(x, y)
+                            and
+                            self.state[x, y] == opponent
+                        ):
+                            x += dx
+                            y += dy
+                            found_opponent = True
+
+                        if (
+                            found_opponent
+                            and
+                            is_on_board(x, y)
+                            and
+                            self.state[x, y] == player
+                        ):
+                            flat_action_idx = x_init * 8 + y_init
+                            self.legal_moves.add(flat_action_idx)
+                            break
+
+    # Find all grid coords of tiles to flip if a tile is placed
+    # based on the value of action. Assuming the action is legal
+    def _get_flip_list(self, action: int) -> list[tuple[int, int]]:
+        flip_list = set()
+        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        player = self.player_turn
+        opponent = self.player_turn * -1
+
+        x_init = action // 8
+        y_init = action % 8
+
+        def is_on_board(x, y):
+            return 0 <= x < 8 and 0 <= y < 8
+
+        for dx, dy in directions:
+            x = x_init + dx
+            y = y_init + dy
+            possible_flips = []
+            while (
+                is_on_board(x, y)
+                and
+                self.state[x, y] == opponent
+            ):
+                if (x, y) not in flip_list:
+                    possible_flips.append((x, y))
+
+                x += dx
+                y += dy
+
+            if (
+                len(possible_flips) > 0
+                and
+                is_on_board(x, y)
+                and
+                self.state[x, y] == player
+            ):
+                for i, j in possible_flips:
+                    flip_list.add((i, j))
+
+        return list(flip_list)
+
+    # Display the game board
+    def display(self) -> None:
+        board_str = "  A B C D E F G H \n"
+        for i in range(8):
+            board_str += f"{i+1} "
+            for j in range(8):
+                char = '.'
+                if self.state[i, j] == 1.0:
+                    char = 'X'
+                elif self.state[i, j] == -1.0:
+                    char = 'O'
+                board_str += f"{char} "
+            board_str += "\n"
+        board_str += "\n"
+        print(board_str)
+
+    # Return the legal actions
+    def legal_actions(self) -> set[int]:
+        return self.legal_moves.copy()
+
+    # Get the vectorised state
+    def vec_state(self) -> np.ndarray[np.float32]:
+        state = np.concatenate([
+            self.state.flatten(),
+            np.asarray([self.player_turn], dtype=np.float32)
+        ])
+        return state
+
+    def reset(self) -> tuple[np.ndarray[np.float32], dict[str,]]:
+        """ Reset the environment ready for a new game.
+        ## Returns:
+        - initial state : np.nddary[np.float32]. First 64 values
+        are 1.0 for player one, -1.0 for player two, 0.0 for
+        available tiles. The final value is the player turn.
+        - env info : dict[str, Any]. Mapping with keys such as
+        'hash', 'winner'. """
+
+        # 1 is player one who goes first, -1 is player two who goes second
+        self.player_turn = 1
+        self.skip_count = 0
+
+        # Initialise the game state numpy array
+        # 0.0 is an unused tile, 1.0 is a tile belonging to player one
+        # and -1.0 is a tile of player two
+        self.state = np.zeros(shape=(8, 8), dtype=np.float32)
+        self.state[3, 3] = -1.0
+        self.state[4, 4] = -1.0
+        self.state[3, 4] = 1.0
+        self.state[4, 3] = 1.0
+
+        self._init_hash()
+        self._update_legal_moves()
+
+        # Create the env info dict
+        env_info = dict()
+        env_info["legal_actions"] = self.legal_actions()
+        env_info["hash"] = self.hash
+        env_info["winner"] = 0
+
+        if self.render:
+            self.display()
+
+        return self.vec_state(), env_info
+
+    # Perform a single env step
+    def step(self, action: int) -> tuple[
+        np.ndarray[np.float32],
+        np.ndarray[np.float32],
+        bool,
+        bool,
+        dict[str,]
+    ]:
+        """ Performs a single env step. Follows the gymnasium
+        convention for environments.
+        ## Inputs:
+        - action : int. action is equal to row * 64 + col to
+        place the current players tile.
+        ## Returns:
+        - initial state : np.nddary[np.float32]. First 64 values
+        are 1.0 for player one, -1.0 for player two, 0.0 for
+        unowned tiles. The final value is the player turn.
+        - reward vec : np.ndarray[np.float32]. First value is
+        reward for player one. Second value is for player two.
+        - terminated : bool. True if the game has ended.
+        env.reset() should be called before another game is
+        started.
+        - truncated : bool. Unused (takes the same value as
+        terminated).
+        - env info : dict[str, Any]. Mapping with keys such as
+        'hash', 'win'. """
+
+        rewards = np.zeros(shape=2, dtype=np.float32)
+        terminated = False
+        env_info = dict()
+        env_info["legal_actions"] = self.legal_actions()
+        env_info["hash"] = self.hash
+        env_info["winner"] = 0
+
+        if len(self.legal_moves) == 0 and action == 0:
+            if self.verbose:
+                print("Skipping turn.")
+            self.skip_count += 1
+
+            if self.skip_count == 2:
+                score = np.sum(self.state)
+                if score != 0:
+                    win_idx = score < 0
+                    rewards[win_idx] = 1.0
+                    rewards[1-win_idx] = -1.0
+                    env_info["winner"] = win_idx + 1
+                terminated = True
+
+            self.player_turn *= -1
+            self._update_legal_moves()
+            zobrist = self.zobrist_array[128]
+            self.hash = self._hash_xor(self.hash, zobrist)
+
+            env_info["legal_actions"] = self.legal_actions()
+            env_info["hash"] = self.hash
+
+            return (
+                self.vec_state(),
+                rewards,
+                terminated,
+                terminated,
+                env_info
+            )
+
+        self.skip_count = 0
+
+        if action not in self.legal_moves:
+            print("Illegal move made.")
+            print(self.legal_moves, action)
+            self.display()
+            return (
+                self.vec_state(),
+                rewards,
+                terminated,
+                terminated,
+                env_info
+            )
+
+        self.state[action // 8, action % 8] = self.player_turn
+
+        zobrist_id = 64 * (self.player_turn == -1) + action
+        zobrist = self.zobrist_array[zobrist_id]
+        self.hash = self._hash_xor(self.hash, zobrist)
+
+        zobrist = self.zobrist_array[128]
+        self.hash = self._hash_xor(self.hash, zobrist)
+
+        for i, j in self._get_flip_list(action):
+            self.state[i, j] = self.player_turn
+            flat_idx = i * 8 + j
+
+            zobrist = self.zobrist_array[flat_idx]
+            self.hash = self._hash_xor(self.hash, zobrist)
+
+            zobrist = self.zobrist_array[64 + flat_idx]
+            self.hash = self._hash_xor(self.hash, zobrist)
+
+        self.player_turn *= -1
+        self._update_legal_moves()
+
+        env_info["legal_actions"] = self.legal_actions()
+        env_info["hash"] = self.hash
+
+        if self.render:
+            self.display()
+
+        return self.vec_state(), rewards, terminated, terminated, env_info
 
 
 class MCTS:
@@ -260,6 +550,12 @@ class MCTS:
         if hash not in self.tree:
             action = None
 
+            if len(self.tree) == 0:
+                self.root_hash = hash
+
+            if len(legal_actions) == 0:
+                legal_actions = {0}
+
             node_info = {
                 "untried_actions": legal_actions.copy(),
                 "parents": set(),
@@ -296,7 +592,7 @@ class MCTS:
 
         return action
 
-    def backprop(self, player: int, win: int) -> None:
+    def backprop(self, winner: int) -> None:
         """ Performs the backpropagation step. This step should
         be performed after the random action simulation has
         terminated. Each node visited has their visits value
@@ -304,11 +600,9 @@ class MCTS:
         their wins value incremented by 1.0 also. If the game is
         a draw then wins are increased by 0.5 for all nodes visited.
         ## Inputs:
-        - player : int. The player who made the move ending the
-        game. Requires a value of 0 for player one and a value
-        of 1 for player two.
-        - win : int. Is 0 if the game ended in a draw, otherwise
-        takes the value 1. """
+        - winner : int. The winner value should be 0 if the game
+        ended in a draw, 1 if player one won and 2 if player two
+        won. """
 
         for i, hash in enumerate(self.visited):
             # Add one visit to each visited node
@@ -316,13 +610,13 @@ class MCTS:
 
             # Add one win to each of the visited
             # nodes belonging to the winner
-            if not win:
+            if winner == 0:
                 self.tree[hash]["wins"] += 0.5
 
-            elif win and (i+1) % 2 == player:
-                self.tree[hash]["wins"] += 1
+            elif i % 2 == winner % 2:
+                self.tree[hash]["wins"] += 1.0
 
-    def evaluate(self, env, eval_iters: int) -> None:
+    def evaluate(self, env, eval_iters: int) -> dict[str,]:
 
         explore_factor = self.explore_factor
         self.explore_factor = 0.0
@@ -346,7 +640,7 @@ class MCTS:
                 # has untried actions. Then perform random actions
                 # until the game is over
                 terminated = False
-                win = 0
+                winner = 0
                 while not terminated:
 
                     player = 1 - player
@@ -365,7 +659,9 @@ class MCTS:
                     )
 
                     legal_actions = env_info["legal_actions"]
-                    if get_random:
+                    if len(legal_actions) == 0:
+                        action = 0
+                    elif get_random:
                         action = np.random.choice(list(legal_actions))
                     else:
                         action = curr_mcts.selection(hash)
@@ -374,13 +670,13 @@ class MCTS:
 
                     _, _, terminated, _, env_info = env.step(action)
                     hash = env_info["hash"]
-                    win = env_info["win"]
+                    winner = env_info["winner"]
 
                 # Update eval info
-                if win and player == tree_player:
+                if winner - 1 == player:
                     eval_entry["wins"] += 1
                     eval_entry["score"] += 1.0
-                elif not win:
+                elif winner == 0:
                     eval_entry["draws"] += 1
                     eval_entry["score"] += 0.5
                 else:
@@ -389,9 +685,9 @@ class MCTS:
                 win_rate = round(eval_entry["wins"] / eval_iters, 3)
                 eval_entry["win_rate"] = win_rate
 
-        self.eval_history.append(eval_info)
-        self.prev_mcts = deepcopy(self)
         self.explore_factor = explore_factor
+
+        return eval_info
 
     def fit(
         self,
@@ -400,7 +696,6 @@ class MCTS:
         eval_every: int,
         eval_iters: int
     ) -> None:
-
         """ Fits the Monte Carlo Tree Search algorithm to the
         environment returned by env_fn(). This implementation
         assumes that the environment follows the gymnasium
@@ -410,8 +705,8 @@ class MCTS:
         after every step of the environment. It also assumes
         that the game returns an env_info dict after every
         env.reset() and env.step(action) call which contains
-        items; "hash": zobrist_hash (str), "win": win_flag (int),
-        "legal_actions": legal_actions (set[int]).
+        items; "hash": zobrist_hash (str), "winner": who_won
+        (int), "legal_actions": legal_actions (set[int]).
         ## Inputs:
         - env_fn : function. Function with no inputs that returns
         an instantiated environment.
@@ -422,12 +717,12 @@ class MCTS:
         env = env_fn()  # init the env
 
         if not hasattr(self, "prev_mcts"):
-            self.prev_mcts = deepcopy(self)
+            self.prev_mcts = MCTS(self.explore_factor)
 
         pbar = trange(n_iters, ascii=True, desc="Fitting MCTS")
         for episode in pbar:
             pbar.set_postfix_str(
-                f"memory_usage= {self.size()}MB"
+                f"tree_size={len(self.tree)}, memory_usage={self.size()}MB"
             )
 
             # Reset the env and perform initial expansion step
@@ -442,28 +737,34 @@ class MCTS:
             # None is returned this indicates we have discovered
             # a new node
             terminated = False
-            win = 0
+            winner = 0
             while not terminated and action is not None:
                 player = 1 - player
                 _, _, terminated, _, env_info = env.step(action)
+
                 hash = env_info["hash"]
                 legal_actions = env_info["legal_actions"]
-                win = env_info["win"]
+                winner = env_info["winner"]
                 action = self.expansion(hash, legal_actions)
 
             # Perform random simulation until the game is over
             while not terminated:
                 player = 1 - player
-                action = np.random.choice(list(legal_actions))
+                legal_actions = env_info["legal_actions"]
+                action = 0
+                if len(legal_actions) > 0:
+                    action = np.random.choice(list(legal_actions))
                 _, _, terminated, _, env_info = env.step(action)
-                win = env_info["win"]
+                winner = env_info["winner"]
 
             # Perform backprop using the player who ended the
             # game and whether the game ended in a win or draw
-            self.backprop(player, win)
+            self.backprop(winner)
             self.cleanup()
 
             if episode % eval_every == eval_every - 1:
-                self.evaluate(env, eval_iters)
+                eval_info = self.evaluate(env, eval_iters)
+                self.eval_history.append(eval_info)
+                self.prev_mcts.tree = deepcopy(self.tree)
                 pprint(f"Evaluation: {self.eval_history[-1]}")
                 print()

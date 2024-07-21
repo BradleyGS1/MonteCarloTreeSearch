@@ -1,0 +1,2 @@
+# Ignore jupyter notebooks for dev testing
+*.ipynb

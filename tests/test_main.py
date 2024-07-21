@@ -129,19 +129,19 @@ def test_step0():
     ]
 
     terminated_list = [0, 0, 0, 1, 1, 1, 1, 1, 1]
-    win_list = [0, 0, 0, 0, 0, 0, 1, 1, 1]
+    winner_list = [0, 0, 0, 0, 0, 0, 2, 1, 1]
 
-    for actions, true_terminated, true_win in zip(
-        actions_list, terminated_list, win_list):
+    for actions, true_terminated, true_winner in zip(
+        actions_list, terminated_list, winner_list):
 
         env.reset()
         terminated = 0
-        win = 0
+        winner = 0
         for action in actions:
             _, _, terminated, _, env_info = env.step(action)
-            win = env_info["win"]
+            winner = env_info["win"]
 
-        assert terminated == true_terminated and win == true_win
+        assert terminated == true_terminated and winner == true_winner
 
     print("Passed Test: test_step0")
 
