@@ -280,7 +280,7 @@ class Othello:
     def display(self) -> None:
         player_one_count = int(np.sum(self.state == +1.0))
         player_two_count = int(np.sum(self.state == -1.0))
-        board_str = f"X: {player_one_count}\tY: {player_two_count} \n"
+        board_str = f"X: {player_one_count}\tO: {player_two_count} \n"
 
         board_str += "  A B C D E F G H \n"
         for i in range(8):
@@ -508,7 +508,7 @@ class MCTS:
         action_to_children = node["children"]
 
         best_action = 0
-        best_uct = 0.0
+        best_uct = -1.0
         for action, children in action_to_children.items():
             uct_vals = np.zeros(shape=len(children), dtype=np.float32)
 
@@ -769,7 +769,6 @@ class MCTS:
             )
 
             # Reset the env and perform initial expansion step
-            player = 1
             env_info = env.reset()[-1]
             hash = env_info["hash"]
             legal_actions = env_info["legal_actions"]
@@ -782,7 +781,6 @@ class MCTS:
             terminated = False
             winner = 0
             while not terminated and action is not None:
-                player = 1 - player
                 _, _, terminated, _, env_info = env.step(action)
 
                 hash = env_info["hash"]
@@ -792,12 +790,12 @@ class MCTS:
 
             # Perform random simulation until the game is over
             while not terminated:
-                player = 1 - player
-                legal_actions = env_info["legal_actions"]
                 action = 0
                 if len(legal_actions) > 0:
                     action = np.random.choice(list(legal_actions))
                 _, _, terminated, _, env_info = env.step(action)
+
+                legal_actions = env_info["legal_actions"]
                 winner = env_info["winner"]
 
             # Perform backprop using the player who ended the
