@@ -6,7 +6,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 
 import numpy as np
 
-from mcts import TicTacToe, MCTS
+from mcts import MCTS
+from tictactoe import TicTacToe
 
 
 # Zobrist related tests for tictactoe
